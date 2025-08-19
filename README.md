@@ -1,50 +1,30 @@
-# maap-repo-template
-Template repository for MAAP projects that contains boilerplate repository documentation. Users are free to keep, omit, and modify the provided documentation to fit their project needs.
+# OPERA_DPS_JOB
 
-<br />
+A simple algorithm to test running the OPERA Surface Displacement workflow on MAAP.
 
-## Documentation Provided
-- README
-- LICENSE
-- CONTRIBUTING
-- CODE_OF_CONDUCT
+## Registering the algorithm
 
-<br />
+Repository URL = https://github.com/HarshiniGirish/OPERA_DPS_JOB.git
 
-## Quickstart Markdown Syntax
-Here are some examples of commonly-used markdown.
+Repository Branch = main
+Run Command = OPERA_DPS_JOB/run.sh
+Build Command = OPERA_DPS_JOB/build.sh
+Algorithm Name = OPERA_DISP
+Description = OPERA Surface Displacement
+Disk Space (GB) = 10
+Resource Allocation = maap-dps-worker-8gb
+Container URL = mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.1.1
 
-|  |  |
-| :---: | :---: |
-| `**bold**` | **bold**  |
-| `*italic*` | *italic*  |
-| \`code\`| `code`|
+Repository URL = https://github.com/HarshiniGirish/OPERA_DPS_JOB.git
 
-<br />
-<br />
+Repository Branch = main
+Run Command = OPERA_DPS_JOB/run.sh
+Build Command = OPERA_DPS_JOB/build.sh
+Algorithm Name = OPERA_DISP
+Description = OPERA Surface Displacement
+Disk Space (GB) = 10
+Resource Allocation = maap-dps-worker-8gb
+Container URL = mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.1.1
+Outputs will be available in your MAAP workspace under:
 
-```
-- list
-  - sublist
-  - sublist
-```
-
-- lists
-  - sub list
-  - sub list
-
-<br />
-<br />
-
-\```
-code block
-\```
-
-
-```
-code block
-```
-
-<br />
-
-See [here](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) for more examples.
+/projects/<your-username>/dps_output/<job-id>/
