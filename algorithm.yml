@@ -1,0 +1,13 @@
+algorithm_description: 
+algorithm_name: OPERA_DISP
+algorithm_version: 0.1.1
+build_command: OPERA_DPS_JOB/build.sh
+disk_space: 10GB
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.1.1
+inputs:
+  config: []
+  file: []
+  positional: []
+queue: maap-dps-worker-8gb
+repository_url: https://github.com/HarshiniGirish/OPERA_DPS_JOB.git
+run_command: OPERA_DPS_JOB/run.sh
