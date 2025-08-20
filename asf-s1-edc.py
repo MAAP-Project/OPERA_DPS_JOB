@@ -423,3 +423,20 @@ if __name__ == '__main__':
     else:
         # No explicit main() found; nothing to do.
         pass
+        
+        
+out_file = "/output/displacement_masked.tif"
+
+disp.rio.to_raster(
+    out_file,
+    driver="COG",            # Cloud-Optimized GeoTIFF
+    tiled=True,
+    blockxsize=256,
+    blockysize=256,
+    compress="DEFLATE",
+    predictor=2,
+    BIGTIFF="IF_SAFER",
+    overwrite=True
+)
+
+print(f"[save] wrote GeoTIFF -> {out_file}")
