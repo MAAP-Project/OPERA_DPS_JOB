@@ -275,7 +275,79 @@ def main():
     # 1) Search + pick a sample OPERA DISP granule
     results = maap.searchGranule(
         cmr_host="cmr.earthdata.nasa.gov",
-        short_n_
+        short_name="OPERA_L3_DISP-S1_V1",
+        bounding_box="-124.8136026553671,32.445063449213436,-113.75989347462286,42.24498423828791",
+        limit=20,
+        temporal="2023-06-01T00:00:00Z,2030-06-12T23:59:59Z",
+    )
+    if not results:
+        raise RuntimeError("No granules found for the query.")
+    sample = results[random.randrange(0, len(results))].getDownloadUrl()
+    u = urlparse(sample)
+    bucket, key = u.netloc, u.path.lstrip("/")
+    s3 = get_s3_client("https://cumulus.asf.alaska.edu/s3credentials")
 
-    
-    
+    # 2) Download
+    local_dir = "/tmp/opera_test"
+    print(f"[download] {bucket}/{key}")
+    local_path = download_s3_file(s3, bucket, key, local_dir)
+    print(f"[download] saved -> {local_path}")
+
+    # 3) Open
+    vars_map = open_opera_disp(local_path)
+
+    # 4) Mask: temporal_coherence < 0.2
+    disp = vars_map["displacement"]
+    mask = None
+    if "temporal_coherence" in vars_map:
+        tc = vars_map["temporal_coherence"]
+        tc_b, disp_b = xr.align(tc, disp, join="exact", copy=False)
+        m_tc = tc_b < 0.2
+        mask = m_tc if mask is None else (mask | m_tc)
+
+    if mask is not None:
+        disp_masked = disp.where(~mask)
+        vars_map["displacement"] = disp_masked
+        disp = disp_masked
+
+    print("[open] displacement (masked):", disp.shape, disp.dtype)
+    print("[open] CRS:", disp.rio.crs)
+    print("[open] Transform:", disp.rio.transform())
+
+    # 5) Spatial subset (bbox in WGS84; reprojects internally to raster CRS)
+    bbox_wgs84 = (-124.8136026553671, 32.445063449213436,
+                  -113.75989347462286, 42.24498423828791)
+    vars_map_sub = subset_vars_map(
+        vars_map,
+        bbox=bbox_wgs84,
+        bbox_crs="EPSG:4326",
+    )
+    disp_sub = vars_map_sub["displacement"]
+    print("subset shape:", disp_sub.shape)
+
+    # 6) Save exactly one COG to /output and create a friendly symlink
+    out_dir = "/output"
+    os.makedirs(out_dir, exist_ok=True)
+    cog_path = os.path.join(out_dir, "disp_masked_subset.cog.tif")
+    final_path = save_cog(disp_sub, cog_path, tile=256, compress="DEFLATE", predictor=2)
+
+    # Friendly symlink name for downstream references
+    symlink = os.path.join(out_dir, "displacement_masked.tif")
+    try:
+        if os.path.lexists(symlink):
+            os.remove(symlink)
+        os.symlink(os.path.basename(final_path), symlink)  # relative link inside /output
+    except Exception as e:
+        print(f"[symlink] warning: {e}")
+
+    if os.path.exists(final_path):
+        size_mb = os.path.getsize(final_path) / 1e6
+        print(f"File saved at: {final_path}")
+        print(f"Size: {size_mb:.2f} MB")
+        print("OK")
+    else:
+        print(f"[error] File not found at: {final_path}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
