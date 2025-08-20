@@ -1,17 +1,19 @@
-#!/usr/bin/env bash
+# !/usr/bin/env bash
 set -euo pipefail
+
 basedir="$( cd "$(dirname "$0")" ; pwd -P )"
 VENV="${basedir}/.venv"
 OUT="/output"
 mkdir -p "${OUT}"
 
-# Build venv if missing
+# Build venv if missing + install deps
 if [ ! -x "${VENV}/bin/python" ]; then
   bash "${basedir}/build.sh"
 fi
 
 # --- Make sure GDAL/PROJ can find their data ---
-# PROJ path from pyproj
+
+# PROJ data dir (from pyproj)
 PROJ_DIR="$("${VENV}/bin/python" - <<'PY'
 import pyproj
 print(pyproj.datadir.get_data_dir())
@@ -19,10 +21,9 @@ PY
 )"
 export PROJ_LIB="${PROJ_DIR}"
 export PROJ_DATA="${PROJ_DIR}"
-# let network fallback work if needed
 export PROJ_NETWORK=ON
 
-# GDAL data path from rasterio
+# GDAL data dir (from rasterio)
 GDAL_DIR="$("${VENV}/bin/python" - <<'PY'
 import rasterio
 from rasterio._env import get_gdal_data
@@ -38,4 +39,4 @@ export VSI_CACHE=TRUE
 export CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif,.tiff,.img,.vrt,.nc,.zarr"
 
 # --- Run the job ---
-exec "${VENV}/bin/python" "${basedir}/asf-s1-edc.py" --dest "${OUT}"
+exec "${VENV}/bin/python" "${basedir}/asf-s1-edc.py"
