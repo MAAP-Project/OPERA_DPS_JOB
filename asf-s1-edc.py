@@ -404,10 +404,10 @@ cog_path = "/output/disp_masked_subset.cog.tif"
 save_cog(to_save, cog_path)
 
 if os.path.exists(cog_path):
-    print(f"✅ File saved at: {cog_path}")
+    print(f"File saved at: {cog_path}")
     print(f"Size: {os.path.getsize(cog_path) / 1e6:.2f} MB")
 else:
-    print(f"❌ File not found at: {cog_path}")
+    print(f"File not found at: {cog_path}")
 
 
 
