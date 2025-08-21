@@ -1,10 +1,17 @@
 # !/bin/bash
 set -euo pipefail
 
-# Install runtime deps for the job image
-pip install --no-cache-dir \
-  boto3 \
+# Always install into the same interpreter that will run the job
+python -V
+python -m pip --version
+
+# Keep tooling current, avoids resolver oddities
+python -m pip install --upgrade --no-cache-dir pip setuptools wheel
+
+# Core deps (versions broad enough to work well on MAAP)
+python -m pip install --no-cache-dir \
   numpy \
+  boto3 \
   xarray \
   rioxarray \
   rasterio \
