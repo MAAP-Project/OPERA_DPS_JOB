@@ -362,3 +362,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+if os.path.isdir("/projects"):
+    shutil.copy(final_path, f"/projects/{user}_disp_masked_subset.cog.tif")
+else:
+    print("[note] /projects not available in this runtime; skipping ADE copy")
+
