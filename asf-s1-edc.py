@@ -340,6 +340,7 @@ def main():
     except Exception as e:
         print(f"[symlink] warning: {e}")
 
+    # Report & ADE copy
     if os.path.exists(final_path):
         size_mb = os.path.getsize(final_path) / 1e6
         print(f"File saved at: {final_path}")
@@ -348,6 +349,16 @@ def main():
     else:
         print(f"[error] File not found at: {final_path}")
         sys.exit(1)
+
+    # --- Copy result to ADE (/projects) for persistent access ---
+    import shutil
+    user = os.environ.get("USER") or os.environ.get("PUSER") or "jobuser"
+    ade_copy_path = f"/projects/{user}_disp_masked_subset.cog.tif"
+    try:
+        shutil.copy(final_path, ade_copy_path)
+        print(f"Copied result to ADE: {ade_copy_path}")
+    except Exception as e:
+        print(f"[error] could not copy to ADE: {e}")
 
 if __name__ == "__main__":
     main()
