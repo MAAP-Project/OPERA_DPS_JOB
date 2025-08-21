@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 import os, sys, json, random, shutil
 from pathlib import Path
 from urllib.parse import urlparse
@@ -325,21 +325,19 @@ def main():
     disp_sub = vars_map_sub["displacement"]
     print("subset shape:", disp_sub.shape)
 
-    # 6) Save COG into RELATIVE ./output (DPS collects this folder)
-    base_dir = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
-
-    out_dir = base_dir / "output"
+    # 6) Save COG into ABSOLUTE /output (DPS collects this path)
+    out_dir = Path("/output")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     cog_path = out_dir / "disp_masked_subset.cog.tif"
     final_path = save_cog(disp_sub, str(cog_path), tile=256, compress="DEFLATE", predictor=2)
 
-    # Friendly symlink inside ./output
+    # Optional symlink (kept inside /output)
     symlink = out_dir / "displacement_masked.tif"
     try:
         if symlink.exists() or symlink.is_symlink():
             symlink.unlink()
-        symlink.symlink_to(cog_path.name)  # relative link
+        symlink.symlink_to(cog_path.name)
     except Exception as e:
         print(f"[symlink] warning: {e}")
 
@@ -367,4 +365,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
