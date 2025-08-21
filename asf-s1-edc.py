@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, sys, json, random
+import os, sys, json, random, shutil
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Any, Dict, Iterable, Optional, Tuple
@@ -325,24 +325,26 @@ def main():
     disp_sub = vars_map_sub["displacement"]
     print("subset shape:", disp_sub.shape)
 
-    # 6) Save exactly one COG to /output and create a friendly symlink
-    out_dir = "/output"
-    os.makedirs(out_dir, exist_ok=True)
-    cog_path = os.path.join(out_dir, "disp_masked_subset.cog.tif")
-    final_path = save_cog(disp_sub, cog_path, tile=256, compress="DEFLATE", predictor=2)
+    # 6) Save COG into RELATIVE ./output (DPS collects this folder)
+    base_dir = Path(__file__).resolve().parent
+    out_dir = base_dir / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Friendly symlink name for downstream references
-    symlink = os.path.join(out_dir, "displacement_masked.tif")
+    cog_path = out_dir / "disp_masked_subset.cog.tif"
+    final_path = save_cog(disp_sub, str(cog_path), tile=256, compress="DEFLATE", predictor=2)
+
+    # Friendly symlink inside ./output
+    symlink = out_dir / "displacement_masked.tif"
     try:
-        if os.path.lexists(symlink):
-            os.remove(symlink)
-        os.symlink(os.path.basename(final_path), symlink)  # relative link inside /output
+        if symlink.exists() or symlink.is_symlink():
+            symlink.unlink()
+        symlink.symlink_to(cog_path.name)  # relative link
     except Exception as e:
         print(f"[symlink] warning: {e}")
 
-    # Report & ADE copy
-    if os.path.exists(final_path):
-        size_mb = os.path.getsize(final_path) / 1e6
+    # Report
+    if Path(final_path).exists():
+        size_mb = Path(final_path).stat().st_size / 1e6
         print(f"File saved at: {final_path}")
         print(f"Size: {size_mb:.2f} MB")
         print("OK")
@@ -350,21 +352,17 @@ def main():
         print(f"[error] File not found at: {final_path}")
         sys.exit(1)
 
-    # --- Copy result to ADE (/projects) for persistent access ---
-    import shutil
-    user = os.environ.get("USER") or os.environ.get("PUSER") or "jobuser"
-    ade_copy_path = f"/projects/{user}_disp_masked_subset.cog.tif"
+    # Optional: copy to ADE for convenience if available
     try:
-        shutil.copy(final_path, ade_copy_path)
-        print(f"Copied result to ADE: {ade_copy_path}")
+        if os.path.isdir("/projects"):
+            user = os.environ.get("USER") or os.environ.get("PUSER") or "jobuser"
+            ade_copy_path = f"/projects/{user}_disp_masked_subset.cog.tif"
+            shutil.copy(str(final_path), ade_copy_path)
+            print(f"Copied result to ADE: {ade_copy_path}")
+        else:
+            print("[note] /projects not available; skipping ADE copy")
     except Exception as e:
         print(f"[error] could not copy to ADE: {e}")
 
 if __name__ == "__main__":
     main()
-
-if os.path.isdir("/projects"):
-    shutil.copy(final_path, f"/projects/{user}_disp_masked_subset.cog.tif")
-else:
-    print("[note] /projects not available in this runtime; skipping ADE copy")
-
