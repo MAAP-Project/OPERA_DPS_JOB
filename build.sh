@@ -1,14 +1,14 @@
 # !/bin/bash
 set -euo pipefail
 
-# Always install into the same interpreter that will run the job
+# Sanity prints (show the exact Python we’ll use)
 python -V
 python -m pip --version
 
-# Keep tooling current, avoids resolver oddities
+# Keep tooling current
 python -m pip install --upgrade --no-cache-dir pip setuptools wheel
 
-# Core deps (versions broad enough to work well on MAAP)
+# Runtime deps
 python -m pip install --no-cache-dir \
   numpy \
   boto3 \
