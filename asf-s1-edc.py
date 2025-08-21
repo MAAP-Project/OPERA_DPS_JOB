@@ -326,7 +326,8 @@ def main():
     print("subset shape:", disp_sub.shape)
 
     # 6) Save COG into RELATIVE ./output (DPS collects this folder)
-    base_dir = Path(__file__).resolve().parent
+    base_dir = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+
     out_dir = base_dir / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -366,3 +367,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
