@@ -1,6 +1,7 @@
 #!/bin/bash
-set -euo pipefail
 
+set -euo pipefail
+mkdir -p /output
 # Run from the directory this script lives in
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
