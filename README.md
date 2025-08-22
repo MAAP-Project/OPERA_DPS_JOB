@@ -18,16 +18,10 @@ Container URL = mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.
 
 
 ## Running the algorithm
-
 ```
-from maap.maap import MAAP
-maap = MAAP()
-
-maap.submitJob(
-    identifier="test-run",
-    algo_id="operasurfacedisplacement",
+maap.submitJob(identifier="098",
+    algo_id="operatrial",
     version="main",
     queue="maap-dps-worker-8gb",
-)
+    )
 ```
-
