@@ -325,9 +325,12 @@ def main():
     disp_sub = vars_map_sub["displacement"]
     print("subset shape:", disp_sub.shape)
 
-    # 6) Save COG into ABSOLUTE /output (DPS collects this path)
+    # old
     out_dir = Path("/output")
+# new (prefer DPS wrapper folder if set)
+    out_dir = Path(os.environ.get("USER_OUTPUT_DIR", "/output"))
     out_dir.mkdir(parents=True, exist_ok=True)
+
 
     cog_path = out_dir / "disp_masked_subset.cog.tif"
     final_path = save_cog(disp_sub, str(cog_path), tile=256, compress="DEFLATE", predictor=2)
