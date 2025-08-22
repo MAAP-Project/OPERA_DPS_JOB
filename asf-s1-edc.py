@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 import os, sys, json, random, shutil
 from pathlib import Path
 from urllib.parse import urlparse
