@@ -128,7 +128,7 @@ def open_opera_disp(path: str) -> Dict[str, xr.DataArray]:
         raise RuntimeError("Could not find 'displacement' variable in the dataset.")
     return out
 
-# ------------- Subsetting helpers -------------
+
 def _ensure_bbox_crs(bbox: Tuple[float, float, float, float],
                      src_crs: Any, dst_crs: Any) -> Tuple[float, float, float, float]:
     if str(src_crs) == str(dst_crs):
@@ -201,7 +201,7 @@ def save_cog(da: xr.DataArray, out_path: str,
     arr = da.values
     arr_out = np.where(np.isnan(arr), nodata_val, arr).astype("float32")
 
-    # Try direct COG (GDAL COG driver)
+    
     try:
         da_cog = xr.DataArray(
             arr_out,
