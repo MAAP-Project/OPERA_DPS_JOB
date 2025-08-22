@@ -1,37 +1,19 @@
-#!/bin/bash
-set -Eeuo pipefail
+# !/usr/bin/env bash
+set -euo pipefail
+echo "[run] starting…"
 
-# If the platform sends SIGTERM (timeout/preemption), save logs and exit 143
-trap 'echo "[run] SIGTERM received (likely timeout/preemption). Saving logs..."; \
-      mkdir -p /output; cp -v _stdout.txt _stderr.txt /output/ || true; exit 143' TERM
+# Activate env if we created one in build.sh; otherwise fall back to default.
+if command -v conda >/dev/null 2>&1; then
+  # shellcheck disable=SC1091
+  source /opt/conda/etc/profile.d/conda.sh || true
+  conda activate subset_mask_cog 2>/dev/null || conda activate python 2>/dev/null || true
+fi
 
-# Work from the repo folder
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Helpful tunables (safe defaults)
+export GDAL_CACHEMAX=512
+mkdir -p /output
 
-echo "[run] CWD: $(pwd)"
-echo "[run] python: $(python -V)"
-echo "[run] which python: $(which python)"
-echo "[run] which pip: $(which pip)"
+# Run your algorithm (adjust the path if you keep the file elsewhere)
+python OPERA_DPS_JOB/disp_subset_mask_to_cog.py
 
-# Make sure PROJ knows where proj.db is (removes those warnings)
-export PROJ_LIB="${PROJ_LIB:-/opt/conda/envs/python/share/proj}"
-[ -d "$PROJ_LIB" ] || PROJ_LIB="/opt/conda/share/proj"
-export PROJ_LIB
-
-# DPS collects ABSOLUTE /output
-export USER_OUTPUT_DIR=/output
-mkdir -p "$USER_OUTPUT_DIR"
-
-# Script must exist
-test -f asf-s1-edc.py || { echo "[run] ERROR: asf-s1-edc.py not found"; exit 1; }
-
-echo "[run] starting OPERA DPS job..."
-# Stream logs to console AND keep copies we can upload
-python asf-s1-edc.py > >(tee _stdout.txt) 2> >(tee _stderr.txt >&2)
-rc=$?
-
-# Always publish logs
-cp -v _stdout.txt _stderr.txt "$USER_OUTPUT_DIR"/ || true
-echo "[run] finished with rc=$rc"
-exit $rc
+echo "[run] finished."
