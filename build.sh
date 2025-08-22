@@ -24,7 +24,9 @@ fi
 
 # Quick smoke test that key libs import
 python - <<'PY'
-import numpy, xarray, rioxarray, rasterio, shapely, pyproj, h5netcdf, boto3
+pip install --no-cache-dir --upgrade \
+   numpy xarray rioxarray rasterio shapely pyproj h5netcdf boto3 affine maap-py
+
 print("[build] imports OK")
 PY
 
