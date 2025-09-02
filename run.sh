@@ -5,7 +5,8 @@ set -euo pipefail
 OUT="${USER_OUTPUT_DIR:-output}"   # DPS wrapper uses 'output' (relative)
 mkdir -p "$OUT" /output
 
-python /app/OPERA_DPS_JOB/asf-s1-edc.py
+python /app/OPERA_DPS_JOB/asf-opera-disp-watermask-cog.py
+
 
 # If Python fell back to /output, collect into $OUT (unless $OUT IS /output)
 if [[ "$OUT" != "/output" && -d /output ]]; then
