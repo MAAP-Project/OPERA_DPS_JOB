@@ -11,7 +11,7 @@ from shapely.geometry import box
 from shapely.ops import transform as shp_transform
 
 from maap.maap import MAAP
-import earthaccess
+
 from s3fs import S3FileSystem
 
 
