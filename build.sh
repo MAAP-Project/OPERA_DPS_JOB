@@ -1,29 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[build] starting…"
+echo "[build] start"
 
-# If conda exists and you want to use it, activate it.
-if command -v conda >/dev/null 2>&1; then
-  # shellcheck disable=SC1091
-  source /opt/conda/etc/profile.d/conda.sh || true
+# Require conda + env.yml for deterministic builds
+if ! command -v conda >/dev/null 2>&1; then
+  echo "[build] conda not found — please use the MAAP ADE base image."
+  exit 2
 fi
 
-ENV_NAME="subset_mask_cog"
+# shellcheck disable=SC1091
+source /opt/conda/etc/profile.d/conda.sh || true
+conda env remove -n subset_watermask_cog -y || true
+echo "[build] creating env from env.yml"
+conda env create -n subset_watermask_cog -f env.yml
 
-# Use env.yml if present (your repo shows env.yml)
-if [[ -f env.yml ]] && command -v conda >/dev/null 2>&1; then
-  echo "[build] creating conda env '${ENV_NAME}' from env.yml"
-  conda env remove -n "${ENV_NAME}" -y || true
-  conda env create -n "${ENV_NAME}" -f env.yml
-else
-  echo "[build] no conda env file or conda missing — using current Python env and ensuring deps"
-  python -m pip install --upgrade pip
-  pip install --no-cache-dir --upgrade \
-    numpy xarray rioxarray rasterio shapely pyproj h5netcdf boto3 affine maap-py
-fi
+conda run -n subset_watermask_cog python - <<'PY'
+import xarray, rioxarray, rasterio, numpy, pyproj, shapely, s3fs, fsspec, h5netcdf, h5py, maap
+print("[build] imports OK")
+PY
 
-# Smoke test (no heredoc, avoids CRLF/heredoc issues)
-python -c "import numpy, xarray, rioxarray, rasterio, shapely, pyproj, h5netcdf, boto3, affine; print('[build] imports OK')"
 
-echo "[build] done."
+echo "[build] done"
