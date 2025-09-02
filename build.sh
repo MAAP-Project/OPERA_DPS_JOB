@@ -1,30 +1,43 @@
 #!/usr/bin/env bash
+# build.sh — set up a lightweight venv with the exact deps your script needs.
+
 set -euo pipefail
 
-echo "[build] start"
+# Where to put the virtual environment (inside the repo/image)
+VENV_DIR="${VENV_DIR:-/opt/venv}"
 
-# Ensure conda is sourced
-if [ -f /opt/conda/etc/profile.d/conda.sh ]; then
-  source /opt/conda/etc/profile.d/conda.sh
-else
-  echo "[build] conda.sh not found"; exit 2
-fi
+# Use system Python to create a venv
+python3 -m venv "$VENV_DIR"
+# shellcheck disable=SC1090
+source "$VENV_DIR/bin/activate"
 
-ENV_NAME="subset_watermask_cog"
-ENV_YML="/app/OPERA_DPS_JOB/env.yml"
+# Upgrade pip tooling
+pip install --no-cache-dir -U pip wheel setuptools
 
-# Remove any old env (ok if none exists)
-conda env remove -n "${ENV_NAME}" -y || true
+# Core deps:
+# - xarray/rioxarray/rasterio: open & COG export
+# - s3fs: remote S3 reads via fsspec
+# - shapely/pyproj: bbox reprojection & clipping
+# - netCDF4/h5netcdf/scipy: multiple backends for OPERA files
+# - maap-py: MAAP SDK
+pip install --no-cache-dir \
+  numpy \
+  xarray \
+  rioxarray \
+  rasterio \
+  s3fs \
+  shapely \
+  pyproj \
+  netCDF4 \
+  h5netcdf \
+  scipy \
+  maap-py
 
-echo "[build] creating env from ${ENV_YML}"
-# Force classic solver to avoid libmamba issues
-CONDA_SOLVER=classic CONDA_NO_PLUGINS=true conda env create -n "${ENV_NAME}" -f "${ENV_YML}"
-
-echo "[build] smoke test"
-conda run -n "${ENV_NAME}" python - <<'PY'
-import numpy, xarray, rioxarray, rasterio, pyproj, shapely, s3fs, fsspec, h5py, boto3, netCDF4, scipy
-import maap
-print("[build] imports OK")
+# Quick import smoke test (fails fast if anything’s off)
+python - <<'PY'
+import xarray, rioxarray, rasterio, s3fs, shapely, pyproj, netCDF4, h5netcdf, scipy
+from maap.maap import MAAP
+print("Deps OK")
 PY
 
-echo "[build] done"
+echo "build.sh: environment ready at ${VENV_DIR}"
