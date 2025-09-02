@@ -19,8 +19,8 @@ Container URL = mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.
 
 ## Running the algorithm
 ```
-maap.submitJob(identifier="098",
-    algo_id="operatrial",
+maap.submitJob(identifier="mock",
+    algo_id="operawatermask",
     version="main",
     queue="maap-dps-worker-8gb",
     )
