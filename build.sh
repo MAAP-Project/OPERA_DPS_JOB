@@ -17,12 +17,12 @@ ENV_YML="/app/OPERA_DPS_JOB/env.yml"
 conda env remove -n "${ENV_NAME}" -y || true
 
 echo "[build] creating env from ${ENV_YML}"
-# Run with plugins disabled to avoid parser bugs
-CONDA_NO_PLUGINS=true conda env create -n "${ENV_NAME}" -f "${ENV_YML}"
+# Force classic solver to avoid libmamba issues
+CONDA_SOLVER=classic CONDA_NO_PLUGINS=true conda env create -n "${ENV_NAME}" -f "${ENV_YML}"
 
 echo "[build] smoke test"
 conda run -n "${ENV_NAME}" python - <<'PY'
-import numpy, xarray, rioxarray, rasterio, pyproj, shapely, s3fs, fsspec, h5py, boto3, netcdf4, scipy
+import numpy, xarray, rioxarray, rasterio, pyproj, shapely, s3fs, fsspec, h5py, boto3, netCDF4, scipy
 import maap
 print("[build] imports OK")
 PY
