@@ -1,22 +1,29 @@
-#!/usr/bin/env -S bash -l
+#!/usr/bin/env bash
 set -euo pipefail
 
 echo "[build] start"
 
-# conda init already done in base; source for non-interactive
-source /opt/conda/etc/profile.d/conda.sh
+# Ensure conda is sourced
+if [ -f /opt/conda/etc/profile.d/conda.sh ]; then
+  source /opt/conda/etc/profile.d/conda.sh
+else
+  echo "[build] conda.sh not found"; exit 2
+fi
 
 ENV_NAME="subset_watermask_cog"
 ENV_YML="/app/OPERA_DPS_JOB/env.yml"
 
-# clean & create
-conda env remove -n "$ENV_NAME" -y || true
-echo "[build] creating conda env '$ENV_NAME' from $ENV_YML"
-CONDA_NO_PLUGINS=true conda env create -n "$ENV_NAME" -f "$ENV_YML"
+# Remove any old env (ok if none exists)
+conda env remove -n "${ENV_NAME}" -y || true
 
-echo "[build] smoke test imports..."
-conda run -n "$ENV_NAME" python - <<'PY'
-import xarray, rioxarray, rasterio, numpy, pyproj, shapely, s3fs, h5netcdf, netCDF4, maap
+echo "[build] creating env from ${ENV_YML}"
+# Run with plugins disabled to avoid parser bugs
+CONDA_NO_PLUGINS=true conda env create -n "${ENV_NAME}" -f "${ENV_YML}"
+
+echo "[build] smoke test"
+conda run -n "${ENV_NAME}" python - <<'PY'
+import numpy, xarray, rioxarray, rasterio, pyproj, shapely, s3fs, fsspec, h5py, boto3, netcdf4, scipy
+import maap
 print("[build] imports OK")
 PY
 
