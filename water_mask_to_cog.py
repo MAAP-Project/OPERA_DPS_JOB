@@ -83,18 +83,50 @@ def _extract_s3_url_from_result(r) -> Optional[str]:
     return None
 
 
+# --- replace your pick_granule_url with this version ---
+import xml.etree.ElementTree as ET
+import requests
+
 def pick_granule_url(maap: MAAP, short_name, temporal, bbox, limit, fixed_ur=None):
+    # 1) find the collection concept-id
     coll = maap.searchCollection(cmr_host="cmr.earthdata.nasa.gov", short_name=short_name)
     if not coll:
         raise RuntimeError(f"No collection found for {short_name}")
     concept_id = coll[0].get("concept-id")
 
+    # 2) build query for granules
     q = {"cmr_host": "cmr.earthdata.nasa.gov"}
-    if concept_id: q["collection_concept_id"] = concept_id
-    if temporal:   q["temporal"] = temporal
-    if bbox:       q["bounding_box"] = bbox
+    if concept_id:
+        # IMPORTANT: granule filters use "collection_concept_id"
+        q["collection_concept_id"] = concept_id
+    if temporal:
+        q["temporal"] = temporal.strip()
+    if bbox:
+        q["bounding_box"] = bbox.strip()
+    if fixed_ur:
+        q["granule_ur"] = fixed_ur.strip()
 
-    results = maap.searchGranule(limit=limit, **q)
+    # 3) call MAAP SDK, but catch any XML parse errors and show diagnostics
+    try:
+        results = maap.searchGranule(limit=limit, **q)
+    except ET.ParseError as e:
+        # Minimal raw GET to show what CMR actually returned on the worker
+        url = "https://cmr.earthdata.nasa.gov/search/granules.xml"
+        params = {
+            "collection_concept_id": concept_id,
+            "temporal": temporal,
+            "bounding_box": bbox,
+            "granule_ur": fixed_ur,
+            "page_size": str(limit or 10),
+        }
+        params = {k: v for k, v in params.items() if v}
+        r = requests.get(url, params=params, headers={"Accept":"application/xml"}, timeout=60)
+        head = (r.text or "")[:1000]
+        raise RuntimeError(
+            f"CMR XML parse failed in worker. status={r.status_code} url={r.url}\n"
+            f"response head:\n{head}"
+        ) from e
+
     if not results:
         raise RuntimeError("No granules found.")
 
@@ -104,16 +136,17 @@ def pick_granule_url(maap: MAAP, short_name, temporal, bbox, limit, fixed_ur=Non
     if fixed_ur:
         pick = next((r for r in results if _granule_ur(r) == fixed_ur), None)
         if pick is None:
-            raise RuntimeError(f"GranuleUR '{fixed_ur}' not found")
+            raise RuntimeError(f"GranuleUR '{fixed_ur}' not found in CMR response")
     else:
         pick = results[0]
 
     s3_url = _extract_s3_url_from_result(pick) or (pick.getDownloadUrl() if hasattr(pick, "getDownloadUrl") else None)
     if not (isinstance(s3_url, str) and s3_url.startswith("s3://")):
-        raise RuntimeError("Could not resolve s3:// URL")
+        raise RuntimeError("Could not resolve s3:// URL from granule metadata")
 
     creds = maap.aws.earthdata_s3_credentials("https://cumulus.asf.alaska.edu/s3credentials")
     return s3_url, {"granule": pick, "aws_creds": creds}
+
 
 
 def open_remote_dataset(granule_url: str, aws_creds: dict) -> xr.Dataset:
