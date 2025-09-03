@@ -90,7 +90,7 @@ def pick_granule_url(maap: MAAP, short_name, temporal, bbox, limit, fixed_ur=Non
     concept_id = coll[0].get("concept-id")
 
     q = {"cmr_host": "cmr.earthdata.nasa.gov"}
-    if concept_id: q["concept_id"] = concept_id
+    if concept_id: q["collection_concept_id"] = concept_id
     if temporal:   q["temporal"] = temporal
     if bbox:       q["bounding_box"] = bbox
 
