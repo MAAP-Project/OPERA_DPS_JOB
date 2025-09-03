@@ -4,8 +4,10 @@
 import os
 import json
 import argparse
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
+import xml.etree.ElementTree as ET
 
+import requests
 import numpy as np
 import xarray as xr
 import rioxarray  # registers .rio
@@ -35,7 +37,20 @@ def parse_args():
                    help="COG overview resampling (nearest for masks)")
     p.add_argument("--out-name", default="water_mask_subset.cog.tif", help="Output filename")
     p.add_argument("--idx-window", default=None, help="Index window 'y0:y1,x0:x1'")
+    p.add_argument("--s3-url", default=None,
+                   help="Direct s3:// path to a .nc granule (bypass CMR search)")
     args, _ = p.parse_known_args()
+
+    # normalize accidental whitespace from UI
+    if args.temporal:
+        args.temporal = args.temporal.strip()
+    if args.bbox:
+        args.bbox = args.bbox.strip()
+    if args.granule_ur:
+        args.granule_ur = args.granule_ur.strip()
+    if args.s3_url:
+        args.s3_url = args.s3_url.strip()
+
     return args
 
 
@@ -44,7 +59,10 @@ def parse_bbox(bbox_str: str) -> Tuple[float, float, float, float]:
     vals = [float(v) for v in bbox_str.split(",")]
     if len(vals) != 4:
         raise ValueError("bbox must be 'minx,miny,maxx,maxy'")
-    return tuple(vals)
+    minx, miny, maxx, maxy = vals
+    if minx >= maxx or miny >= maxy:
+        raise ValueError("bbox min values must be < max values")
+    return minx, miny, maxx, maxy
 
 
 def ensure_wgs84_bbox_to_target(bbox, target_crs: Any):
@@ -56,17 +74,8 @@ def ensure_wgs84_bbox_to_target(bbox, target_crs: Any):
 
 
 def _extract_s3_url_from_result(r) -> Optional[str]:
-    if hasattr(r, "getDownloadUrl"):
-        try:
-            url = r.getDownloadUrl()
-            if isinstance(url, str) and url.startswith("s3://"):
-                return url
-        except Exception:
-            pass
+    # Try MAAP/CMR dict structure
     if isinstance(r, dict):
-        for k in ("url", "URL", "download_url", "DownloadURL"):
-            if k in r and isinstance(r[k], str) and r[k].startswith("s3://"):
-                return r[k]
         try:
             urls = r["Granule"]["OnlineAccessURLs"]["OnlineAccessURL"]
             if isinstance(urls, list):
@@ -80,73 +89,138 @@ def _extract_s3_url_from_result(r) -> Optional[str]:
                     return u0
         except Exception:
             pass
+    # Some SDK objects expose getDownloadUrl()
+    if hasattr(r, "getDownloadUrl"):
+        try:
+            url = r.getDownloadUrl()
+            if isinstance(url, str) and url.startswith("s3://"):
+                return url
+        except Exception:
+            pass
     return None
 
 
-# --- replace your pick_granule_url with this version ---
-import xml.etree.ElementTree as ET
-import requests
+def _first_s3_from_umm(umm_item) -> Optional[str]:
+    # UMM JSON -> look in RelatedUrls first
+    try:
+        for u in umm_item["umm"].get("RelatedUrls", []):
+            url = u.get("URL")
+            if isinstance(url, str) and url.startswith("s3://"):
+                return url
+    except Exception:
+        pass
+    # Fallbacks
+    try:
+        lst = umm_item["umm"]["OnlineAccessURLs"]["OnlineAccessURL"]
+        if isinstance(lst, list):
+            for it in lst:
+                u = it.get("URL") if isinstance(it, dict) else it
+                if isinstance(u, str) and u.startswith("s3://"):
+                    return u
+        elif isinstance(lst, dict):
+            u = lst.get("URL")
+            if isinstance(u, str) and u.startswith("s3://"):
+                return u
+    except Exception:
+        pass
+    return None
+
 
 def pick_granule_url(maap: MAAP, short_name, temporal, bbox, limit, fixed_ur=None):
-    # 1) find the collection concept-id
+    # Find collection concept-id
     coll = maap.searchCollection(cmr_host="cmr.earthdata.nasa.gov", short_name=short_name)
     if not coll:
         raise RuntimeError(f"No collection found for {short_name}")
     concept_id = coll[0].get("concept-id")
 
-    # 2) build query for granules
-    q = {"cmr_host": "cmr.earthdata.nasa.gov"}
-    if concept_id:
-        # IMPORTANT: granule filters use "collection_concept_id"
-        q["collection_concept_id"] = concept_id
+    # Build SDK query (granule search expects 'collection_concept_id')
+    q = {"cmr_host": "cmr.earthdata.nasa.gov", "collection_concept_id": concept_id}
     if temporal:
-        q["temporal"] = temporal.strip()
+        q["temporal"] = temporal
     if bbox:
-        q["bounding_box"] = bbox.strip()
-    if fixed_ur:
-        q["granule_ur"] = fixed_ur.strip()
+        q["bounding_box"] = bbox
 
-    # 3) call MAAP SDK, but catch any XML parse errors and show diagnostics
+    # First try the SDK (XML), catch parser hiccups and fall back to UMM-JSON
     try:
         results = maap.searchGranule(limit=limit, **q)
     except ET.ParseError as e:
-        # Minimal raw GET to show what CMR actually returned on the worker
-        url = "https://cmr.earthdata.nasa.gov/search/granules.xml"
+        # Fallback to CMR UMM-JSON (no XML parsing)
         params = {
             "collection_concept_id": concept_id,
-            "temporal": temporal,
-            "bounding_box": bbox,
-            "granule_ur": fixed_ur,
             "page_size": str(limit or 10),
         }
-        params = {k: v for k, v in params.items() if v}
-        r = requests.get(url, params=params, headers={"Accept":"application/xml"}, timeout=60)
-        head = (r.text or "")[:1000]
-        raise RuntimeError(
-            f"CMR XML parse failed in worker. status={r.status_code} url={r.url}\n"
-            f"response head:\n{head}"
-        ) from e
+        if temporal:
+            params["temporal"] = temporal
+        if bbox:
+            params["bounding_box"] = bbox
+        if fixed_ur:
+            params["granule_ur"] = fixed_ur
+
+        r = requests.get(
+            "https://cmr.earthdata.nasa.gov/search/granules.umm_json",
+            params=params,
+            timeout=60,
+        )
+        if r.status_code != 200:
+            raise RuntimeError(
+                f"CMR UMM-JSON request failed: status={r.status_code} url={r.url}"
+            ) from e
+        data = r.json()
+        items = data.get("items", [])
+        if not items:
+            raise RuntimeError("No granules found (UMM-JSON fallback).")
+        if fixed_ur:
+            items = [it for it in items if it.get("umm", {}).get("GranuleUR") == fixed_ur]
+            if not items:
+                raise RuntimeError(f"GranuleUR '{fixed_ur}' not found in UMM-JSON results.")
+        s3_url = _first_s3_from_umm(items[0])
+        if not s3_url:
+            raise RuntimeError("Could not find s3:// URL in UMM-JSON item.")
+        creds = maap.aws.earthdata_s3_credentials("https://cumulus.asf.alaska.edu/s3credentials")
+        return s3_url, {"granule": items[0], "aws_creds": creds}
 
     if not results:
         raise RuntimeError("No granules found.")
 
-    def _granule_ur(r):
+    # Respect fixed UR if provided
+    def _gur(r):
         return r.get("Granule", {}).get("GranuleUR") if isinstance(r, dict) else getattr(r, "GranuleUR", None)
 
     if fixed_ur:
-        pick = next((r for r in results if _granule_ur(r) == fixed_ur), None)
+        pick = next((r for r in results if _gur(r) == fixed_ur), None)
         if pick is None:
-            raise RuntimeError(f"GranuleUR '{fixed_ur}' not found in CMR response")
+            raise RuntimeError(f"GranuleUR '{fixed_ur}' not found in SDK results.")
     else:
         pick = results[0]
 
-    s3_url = _extract_s3_url_from_result(pick) or (pick.getDownloadUrl() if hasattr(pick, "getDownloadUrl") else None)
+    s3_url = _extract_s3_url_from_result(pick)
+    if not (isinstance(s3_url, str) and s3_url.startswith("s3://")) and hasattr(pick, "getDownloadUrl"):
+        try:
+            s3_try = pick.getDownloadUrl()
+            if isinstance(s3_try, str) and s3_try.startswith("s3://"):
+                s3_url = s3_try
+        except Exception:
+            pass
+
     if not (isinstance(s3_url, str) and s3_url.startswith("s3://")):
-        raise RuntimeError("Could not resolve s3:// URL from granule metadata")
+        # As a last resort, dump the first 1k of a raw XML response for debugging
+        params = {
+            "collection_concept_id": concept_id,
+            "page_size": str(limit or 10),
+        }
+        if temporal:
+            params["temporal"] = temporal
+        if bbox:
+            params["bounding_box"] = bbox
+        rr = requests.get("https://cmr.earthdata.nasa.gov/search/granules.xml",
+                          params=params, timeout=60)
+        raise RuntimeError(
+            "Could not resolve s3:// URL from granule metadata.\n"
+            f"SDK results example (xml head {len(rr.text[:1000])} chars):\n{rr.text[:1000]}"
+        )
 
     creds = maap.aws.earthdata_s3_credentials("https://cumulus.asf.alaska.edu/s3credentials")
     return s3_url, {"granule": pick, "aws_creds": creds}
-
 
 
 def open_remote_dataset(granule_url: str, aws_creds: dict) -> xr.Dataset:
@@ -155,17 +229,18 @@ def open_remote_dataset(granule_url: str, aws_creds: dict) -> xr.Dataset:
                       secret=aws_creds["secretAccessKey"],
                       token=aws_creds["sessionToken"],
                       client_kwargs={"region_name": "us-west-2"})
-    _ = s3.info(granule_url)
+    _ = s3.info(granule_url)  # sanity: raises if missing
 
+    # Try engines in order
     for engine in ["h5netcdf", "netcdf4", "scipy"]:
         try:
             fobj = s3.open(granule_url, "rb")
             ds = xr.open_dataset(fobj, engine=engine, chunks=None)
-            _ = list(ds.sizes.items())[:1]
+            _ = list(ds.sizes.items())[:1]  # touch
             return ds
         except Exception:
             continue
-    raise RuntimeError(f"Failed to open {granule_url}")
+    raise RuntimeError(f"Failed to open {granule_url} (tried h5netcdf/netcdf4/scipy)")
 
 
 def get_water_mask(ds: xr.Dataset) -> xr.DataArray:
@@ -212,25 +287,54 @@ def write_cog(da: xr.DataArray, out_path: str,
 # ----------------- Main -----------------
 def main():
     args = parse_args()
+
+    # Log what the worker actually received (shows up in _stdout.txt)
+    print(json.dumps({
+        "args": {
+            "short_name": args.short_name,
+            "temporal": args.temporal,
+            "bbox": args.bbox,
+            "limit": args.limit,
+            "granule_ur": args.granule_ur,
+            "s3_url": args.s3_url
+        }
+    }))
+
     out_dir = os.environ.get("USER_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, args.out_name)
 
     maap = MAAP()
-    url, meta = pick_granule_url(maap, args.short_name, args.temporal, args.bbox, args.limit, args.granule_ur)
+
+    # Either open a direct s3:// path, or discover via CMR
+    if args.s3_url:
+        url = args.s3_url
+        meta = {"granule": None,
+                "aws_creds": maap.aws.earthdata_s3_credentials("https://cumulus.asf.alaska.edu/s3credentials")}
+    else:
+        url, meta = pick_granule_url(maap, args.short_name, args.temporal, args.bbox, args.limit, args.granule_ur)
+
     ds = open_remote_dataset(url, meta["aws_creds"])
-    wm = get_water_mask(ds)
+    try:
+        wm = get_water_mask(ds)
 
-    if args.idx_window:
-        wm = subset_idx(wm, args.idx_window)
-    elif args.bbox:
-        wm = subset_bbox(wm, parse_bbox(args.bbox))
+        if args.idx_window:
+            wm = subset_idx(wm, args.idx_window)
+        elif args.bbox:
+            wm = subset_bbox(wm, parse_bbox(args.bbox))
 
-    out = write_cog(wm, out_path,
-                    tile=args.tile,
-                    compress=args.compress,
-                    overview_resampling=args.overview_resampling)
+        out = write_cog(wm, out_path,
+                        tile=args.tile,
+                        compress=args.compress,
+                        overview_resampling=args.overview_resampling)
 
+    finally:
+        try:
+            ds.close()
+        except Exception:
+            pass
+
+    # Convenience symlink
     link_name = os.path.join(out_dir, "water_mask.tif")
     try:
         if os.path.exists(link_name) or os.path.islink(link_name):
