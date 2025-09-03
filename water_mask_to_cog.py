@@ -324,9 +324,12 @@ def main():
             wm = subset_bbox(wm, parse_bbox(args.bbox))
 
         out = write_cog(wm, out_path,
-                        tile=args.tile,
-                        compress=args.compress,
-                        overview_resampling=args.overview_resampling)
+                tile=args.tile,
+                compress=args.compress,
+                overview_resampling=args.overview_resampling)
+
+# ✅ Just confirm the file is there, don’t make a symlink
+print(f"Saved COG to {out}")
 
     finally:
         try:
