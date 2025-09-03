@@ -1,89 +1,42 @@
-# OPERA Surface Displacement DPS JOB
+1) Imports
 
+Brings in standard libraries for JSON, arguments, and XML, plus geospatial/data tools: xarray and rioxarray for reading/writing, pyproj/shapely for coordinate transforms, requests for HTTP calls, maap for CMR/S3 access, and s3fs for S3 file handling.
 
+2) Command-line Interface (CLI)
 
-Export the OPERA Surface Displacement “water_mask” layer from a granule into a tiled, compressed Cloud-Optimized GeoTIFF (COG). You can either:
+Defines arguments such as short name, temporal range, bounding box, granule UR, S3 URL, output name, and COG settings. It also trims whitespace in case inputs from UI are messy.
 
-Discover a granule via CMR (by short name, time window, optional bbox, and optional specific GranuleUR), or
+3) Helper Utilities
 
-Bypass discovery and open a known s3:// granule directly.
+Provides small functions to parse bounding boxes, reproject them to the dataset CRS, and extract S3 URLs from CMR results or UMM JSON. These ensure consistent handling of search and download metadata.
 
-Optional subsetting is supported by index window or geographic bounding box. Output is a uint8 COG with overviews (good defaults for masks).
+4) Granule Discovery and Credentials
 
-## Inputs (CLI flags)
+Searches CMR for granules based on collection, time, and bbox. Uses the MAAP SDK with an XML response first, then falls back to UMM JSON if needed. Once a granule is found, extracts its S3 path and fetches temporary AWS credentials for access.
 
---short-name (default OPERA_L3_DISP-S1_V1): CMR collection to query.
+5) Opening the Dataset
 
---temporal: 'startZ,endZ' in ISO8601; limits the CMR search.
+Uses s3fs with the temporary credentials to access the remote NetCDF/HDF file. Tries multiple xarray engines (h5netcdf, netcdf4, scipy) until one succeeds and returns the dataset.
 
---bbox: 'minx,miny,maxx,maxy' in WGS84; limits CMR search and can also subset the raster.
+6) Extracting the Water Mask
 
---limit: cap the number of granules returned.
+Selects the water_mask variable from the dataset. If the data has a time dimension or single-band layout, it normalizes to a 2D slice. Finally, it converts the result into a simple boolean mask.
 
---granule-ur: pick an exact granule if you know the UR.
+7) Subsetting
 
---s3-url: skip CMR and open this s3://…nc directly.
+Applies optional cropping. If an index window is given, slices directly by pixel rows/columns. If a bounding box is provided, reprojects it and uses rio.clip_box to crop spatially.
 
---idx-window: pixel index subsetting in the form y0:y1,x0:x1.
+8) Writing the COG
 
---tile, --compress, --overview-resampling: COG tiling/compression/overview options.
+Casts the mask to uint8, assigns nodata as 255, and writes a Cloud-Optimized GeoTIFF. The file is tiled, compressed, and includes overviews, producing an efficient binary mask raster.
 
---out-name: filename for the output COG (default water_mask_subset.cog.tif).
+9) Main Program Flow
 
-Environment: the output directory is pulled from USER_OUTPUT_DIR (falls back to /output).
+Parses inputs, logs them as JSON, resolves the output directory (USER_OUTPUT_DIR or /output), discovers or uses the provided S3 URL, opens the dataset, extracts and subsets the water mask, writes the COG, and prints final status including file size.
 
-## Discovery & selection
+10) Output Visibility Problem
 
-Collection lookup: uses the MAAP SDK to find the collection’s concept-id by short_name.
-
-Granule search: queries CMR for granules (temporal + bbox filters if provided).
-
-First tries MAAP’s XML/SDK path; if XML parsing fails, it falls back to CMR UMM-JSON.
-
-Respects --granule-ur if supplied.
-
-S3 URL resolution: extracts the s3:// object URL from UMM JSON or the SDK structure.
-
-Temporary AWS credentials: requests short-lived creds from ASF’s s3credentials endpoint so we can read the file.
-
-If --s3-url is provided, the script skips discovery and only fetches credentials.
-
-## Opening the granule
-
-Uses s3fs with the temporary credentials.
-
-Tries xarray with engines in order: h5netcdf, then netcdf4, then scipy.
-
-Opens the remote NetCDF/HDF file as a dataset (no explicit chunking is set here).
-
-Getting the mask & optional subsetting
-
-Extracts the water_mask variable from the dataset.
-
-Handles common dimension patterns (time, band) to get a 2D slice.
-
-Converts to a boolean mask (> 0).
-
-If --idx-window is set: pixel index slice via isel.
-
-Else if --bbox is set: reprojects the WGS84 bbox into the data CRS (via pyproj), then crops (rio.clip_box).
-
-Writing the COG
-
-Casts to uint8, sets nodata = 255.
-
-## Writes a COG with:
-
-block size = --tile (default 256),
-
-compression = --compress (default DEFLATE),
-
-overviews built with --overview-resampling (default nearest, appropriate for masks),
-
-BIGTIFF=IF_NEEDED.
-
-Output path is <USER_OUTPUT_DIR or /output>/<out-name>.
-
+Although the script prints that it saved the COG file and shows its size, the file may not appear when inspecting the container. This usually happens if /output during execution is mounted differently than /output in the inspection shell, or if a symlink target is outside the visible filesystem.
 
 
 ## Registering the algorithm
