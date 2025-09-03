@@ -323,35 +323,24 @@ def main():
         elif args.bbox:
             wm = subset_bbox(wm, parse_bbox(args.bbox))
 
-        out = write_cog(wm, out_path,
-                tile=args.tile,
-                compress=args.compress,
-                overview_resampling=args.overview_resampling)
+           out = write_cog(wm, out_path,
+                    tile=args.tile,
+                    compress=args.compress,
+                    overview_resampling=args.overview_resampling)
 
-# ✅ Just confirm the file is there, don’t make a symlink
-print(f"Saved COG to {out}")
-
-    finally:
-        try:
-            ds.close()
-        except Exception:
-            pass
-
-    # Convenience symlink
-    link_name = os.path.join(out_dir, "water_mask.tif")
-    try:
-        if os.path.exists(link_name) or os.path.islink(link_name):
-            os.unlink(link_name)
-        os.symlink(os.path.basename(out), link_name)
-    except Exception:
-        pass
+    
+    print(f"Saved COG to {out}")
 
     if os.path.exists(out):
-        print(json.dumps({"status": "OK", "outfile": out,
-                          "size_mb": round(os.path.getsize(out) / 1e6, 2)}))
+        print(json.dumps({
+            "status": "OK",
+            "outfile": out,
+            "size_mb": round(os.path.getsize(out) / 1e6, 2)
+        }))
     else:
         raise SystemExit(1)
 
 
 if __name__ == "__main__":
     main()
+
