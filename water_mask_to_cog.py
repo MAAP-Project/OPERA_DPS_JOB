@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # OPERA DISP: extract internal water_mask variable, subset by bbox/idx, write as COG.
 
+#!/usr/bin/env python
+# OPERA DISP: extract internal water_mask variable, subset by bbox/idx, write as COG.
+
 import os
 import json
 import argparse
@@ -288,7 +291,7 @@ def write_cog(da: xr.DataArray, out_path: str,
 def main():
     args = parse_args()
 
-    # Log what the worker actually received (shows up in _stdout.txt)
+    # Log inputs (goes to _stdout.txt)
     print(json.dumps({
         "args": {
             "short_name": args.short_name,
@@ -306,36 +309,50 @@ def main():
 
     maap = MAAP()
 
-    # Either open a direct s3:// path, or discover via CMR
+    # Choose source: direct s3 or CMR discovery
     if args.s3_url:
         url = args.s3_url
-        meta = {"granule": None,
-                "aws_creds": maap.aws.earthdata_s3_credentials("https://cumulus.asf.alaska.edu/s3credentials")}
+        meta = {
+            "granule": None,
+            "aws_creds": maap.aws.earthdata_s3_credentials(
+                "https://cumulus.asf.alaska.edu/s3credentials"
+            ),
+        }
     else:
-        url, meta = pick_granule_url(maap, args.short_name, args.temporal, args.bbox, args.limit, args.granule_ur)
+        url, meta = pick_granule_url(
+            maap,
+            args.short_name,
+            args.temporal,
+            args.bbox,
+            args.limit,
+            args.granule_ur,
+        )
 
     ds = open_remote_dataset(url, meta["aws_creds"])
-    try:
-        wm = get_water_mask(ds)
 
-        if args.idx_window:
-            wm = subset_idx(wm, args.idx_window)
-        elif args.bbox:
-            wm = subset_bbox(wm, parse_bbox(args.bbox))
+    # Build mask and optionally subset
+    wm = get_water_mask(ds)
+    if args.idx_window:
+        wm = subset_idx(wm, args.idx_window)
+    elif args.bbox:
+        wm = subset_bbox(wm, parse_bbox(args.bbox))
 
-           out = write_cog(wm, out_path,
-                    tile=args.tile,
-                    compress=args.compress,
-                    overview_resampling=args.overview_resampling)
+    # Write COG and report
+    out = write_cog(
+        wm,
+        out_path,
+        tile=args.tile,
+        compress=args.compress,
+        overview_resampling=args.overview_resampling,
+    )
 
-    
     print(f"Saved COG to {out}")
 
     if os.path.exists(out):
         print(json.dumps({
             "status": "OK",
             "outfile": out,
-            "size_mb": round(os.path.getsize(out) / 1e6, 2)
+            "size_mb": round(os.path.getsize(out) / 1e6, 2),
         }))
     else:
         raise SystemExit(1)
@@ -343,4 +360,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
