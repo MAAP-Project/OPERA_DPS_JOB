@@ -1,5 +1,5 @@
 algorithm_description: 
-algorithm_name: operasurfacedisplacement
+algorithm_name: operawatermask1
 algorithm_version: 0.1.1
 build_command: OPERA_DPS_JOB/build.sh
 disk_space: 10GB
