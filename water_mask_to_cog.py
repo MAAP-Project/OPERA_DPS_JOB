@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # OPERA DISP: extract internal water_mask variable, subset by bbox/idx, write as COG.
 
-#!/usr/bin/env python
-# OPERA DISP: extract internal water_mask variable, subset by bbox/idx, write as COG.
+
 
 import os
 import json
