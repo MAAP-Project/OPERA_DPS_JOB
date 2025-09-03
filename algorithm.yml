@@ -9,5 +9,5 @@ inputs:
   file: []
   positional: []
 queue: maap-dps-worker-8gb
-repository_url: https://github.com/HarshiniGirish/OPERA_DPS_JOB.git
+repository_url: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
 run_command: OPERA_DPS_JOB/run.sh
