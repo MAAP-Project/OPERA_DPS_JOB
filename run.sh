@@ -2,21 +2,23 @@
 # run.sh — executes your script with env-var-driven arguments inside the venv.
 
 set -euo pipefail
+# This script is the one that is called by the DPS.
+# Use this script to prepare input paths for any files
+# that are downloaded by the DPS and outputs that are
+# required to be persisted
 
-# Paths
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${VENV_DIR:-/opt/venv}"
-PY="${VENV_DIR}/bin/python"
+# Get current location of build script
+basedir=$(dirname "$(readlink -f "$0")")
 
-# Ensure venv is present
-if [[ ! -x "$PY" ]]; then
-  echo "run.sh: ${PY} not found. Did you run ./build.sh?" >&2
-  exit 1
-fi
+# Create output directory to store outputs.
+# The name is output as required by the DPS.
+# Note how we dont provide an absolute path
+# but instead a relative one as the DPS creates
+# a temp working directory for our code.
 
-# Required by your script (DPS usually sets this; default for local runs)
-export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-/output}"
+export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-output}"
 mkdir -p "$USER_OUTPUT_DIR"
+
 
 # Map environment variables to CLI flags (only pass if set)
 # Available envs (all optional):
@@ -42,6 +44,7 @@ ARGS=()
 [[ -n "${OVERVIEW_RESAMPLING:-}" ]]   && ARGS+=("--overview-resampling" "${OVERVIEW_RESAMPLING}")
 [[ -n "${OUT_NAME:-}" ]]              && ARGS+=("--out-name" "${OUT_NAME}")
 [[ -n "${IDX_WINDOW:-}" ]]            && ARGS+=("--idx-window" "${IDX_WINDOW}")
+[[ -n "${S3_URL:-}" ]]            && ARGS+=("--s3-url" "${S3_URL}")
 
 # Defaults (match your script’s defaults if envs not set)
 if ! printf '%s\0' "${ARGS[@]}" | grep -q -- '--short-name'; then
@@ -50,5 +53,6 @@ fi
 
 echo "run.sh: launching water-mask export..."
 echo "run.sh: output dir: ${USER_OUTPUT_DIR}"
+echo "run.sh: running ${basedir}/water_mask_to_cog.py ${ARGS[@]}"
 
-exec "$PY" "${HERE}/water_mask_to_cog.py" "${ARGS[@]}"
+conda run --live-stream --name subset_watermask_cog python ${basedir}/water_mask_to_cog.py ${ARGS[@]}
