@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
-# run.sh — executes your script with env-var-driven arguments inside the venv.
+# run.sh — executes your script with env-var-driven arguments inside the conda env.
 
 set -euo pipefail
 
 # Paths
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${VENV_DIR:-/opt/venv}"
-PY="${VENV_DIR}/bin/python"
-
-# Ensure venv is present
-if [[ ! -x "$PY" ]]; then
-  echo "run.sh: ${PY} not found. Did you run ./build.sh?" >&2
-  exit 1
-fi
+basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_NAME="${ENV_NAME:-subset_watermask_cog}"
 
 # Required by your script (DPS usually sets this; default for local runs)
-export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-/output}"
+export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-output}"
 mkdir -p "$USER_OUTPUT_DIR"
 
 # Map environment variables to CLI flags (only pass if set)
@@ -30,6 +23,7 @@ mkdir -p "$USER_OUTPUT_DIR"
 #   OVERVIEW_RESAMPLING e.g. "nearest"
 #   OUT_NAME   e.g.  "water_mask_subset.cog.tif"
 #   IDX_WINDOW e.g.  "y0:y1,x0:x1" (overrides BBOX if provided)
+#   S3_URL     direct s3:// path (bypasses CMR search)
 
 ARGS=()
 [[ -n "${SHORT_NAME:-}" ]]            && ARGS+=("--short-name" "${SHORT_NAME}")
@@ -42,6 +36,7 @@ ARGS=()
 [[ -n "${OVERVIEW_RESAMPLING:-}" ]]   && ARGS+=("--overview-resampling" "${OVERVIEW_RESAMPLING}")
 [[ -n "${OUT_NAME:-}" ]]              && ARGS+=("--out-name" "${OUT_NAME}")
 [[ -n "${IDX_WINDOW:-}" ]]            && ARGS+=("--idx-window" "${IDX_WINDOW}")
+[[ -n "${S3_URL:-}" ]]                && ARGS+=("--s3-url" "${S3_URL}")
 
 # Defaults (match your script’s defaults if envs not set)
 if ! printf '%s\0' "${ARGS[@]}" | grep -q -- '--short-name'; then
@@ -51,4 +46,5 @@ fi
 echo "run.sh: launching water-mask export..."
 echo "run.sh: output dir: ${USER_OUTPUT_DIR}"
 
-exec "$PY" "${HERE}/water_mask_to_cog.py" "${ARGS[@]}"
+# Execute inside the conda environment
+conda run --live-stream -n "$ENV_NAME" python "${basedir}/water_mask_to_cog.py" "${ARGS[@]}"
