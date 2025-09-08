@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # OPERA DISP: extract internal water_mask variable, subset by bbox/idx, write as COG.
 
-
-
 import os
 import json
 import argparse
@@ -302,7 +300,8 @@ def main():
         }
     }))
 
-    out_dir = os.environ.get("USER_OUTPUT_DIR", "/output")
+    # Default relative "output" so local ADE runs don't write to root.
+    out_dir = os.environ.get("USER_OUTPUT_DIR", "output")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, args.out_name)
 
@@ -329,32 +328,39 @@ def main():
 
     ds = open_remote_dataset(url, meta["aws_creds"])
 
-    # Build mask and optionally subset
-    wm = get_water_mask(ds)
-    if args.idx_window:
-        wm = subset_idx(wm, args.idx_window)
-    elif args.bbox:
-        wm = subset_bbox(wm, parse_bbox(args.bbox))
+    try:
+        # Build mask and optionally subset
+        wm = get_water_mask(ds)
+        if args.idx_window:
+            wm = subset_idx(wm, args.idx_window)
+        elif args.bbox:
+            wm = subset_bbox(wm, parse_bbox(args.bbox))
 
-    # Write COG and report
-    out = write_cog(
-        wm,
-        out_path,
-        tile=args.tile,
-        compress=args.compress,
-        overview_resampling=args.overview_resampling,
-    )
+        # Write COG and report
+        out = write_cog(
+            wm,
+            out_path,
+            tile=args.tile,
+            compress=args.compress,
+            overview_resampling=args.overview_resampling,
+        )
 
-    print(f"Saved COG to {out}")
+        print(f"Saved COG to {out}")
 
-    if os.path.exists(out):
-        print(json.dumps({
-            "status": "OK",
-            "outfile": out,
-            "size_mb": round(os.path.getsize(out) / 1e6, 2),
-        }))
-    else:
-        raise SystemExit(1)
+        if os.path.exists(out):
+            print(json.dumps({
+                "status": "OK",
+                "outfile": out,
+                "size_mb": round(os.path.getsize(out) / 1e6, 2),
+            }))
+        else:
+            raise SystemExit(1)
+    finally:
+        # Release S3/file handles explicitly
+        try:
+            ds.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
