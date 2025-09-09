@@ -52,17 +52,16 @@ Resource = maap-dps-worker-8gb
 Container URL = mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v4.1.1
 
 ```
-
-
-## Running the algorithm
-maap.submitJob(identifier="mon",
+```
+maap.submitJob(identifier="tuesday",
     algo_id="operawatermask1",
     version="feat-v1",
-    queue="maap-dps-worker-8gb",
-    SHORT_NAME="",
-    TEMPORAL="",
+    queue="maap-dps-worker-16gb",
+    SHORT_NAME="OPERA_L3_DISP-S1_V1",
+    TEMPORAL="2016-07-01T00:00:00Z,2024-12-31T23:59:59Z",
     BBOX="",
     LIMIT="",
     GRANULE_UR="",
-    IDX_WINDOW="",
+    IDX_WINDOW="0:1024,0:1024",
     S3_URL="")
+```
