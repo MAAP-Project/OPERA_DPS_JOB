@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_PREFIX="/opt/conda/envs/subset_watermask_cog"
 
-conda env create -f environment.yml --prefix "$ENV_PREFIX"
+# point directly at the env file that lives next to this script
+conda env create -f "${basedir}/environment.yml" --prefix "$ENV_PREFIX"
 conda clean -afy
 
 # Sanity check
