@@ -3,7 +3,7 @@
 
 set -euo pipefail
 basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY="/opt/venv/bin/python"   # keep if you're using a venv
+PY='conda run --live-stream -p /opt/conda/envs/subset_watermask_cog python'
 
 # Positional args from DPS (current behavior)
 # 1 SHORT_NAME, 2 TEMPORAL, 3 BBOX, 4 LIMIT, 5 GRANULE_UR, 6 IDX_WINDOW, 7 S3_URL
@@ -18,7 +18,7 @@ S3_URL="${7:-${S3_URL:-}}"
 export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-output}"
 mkdir -p "$USER_OUTPUT_DIR"
 
-# Build CLI
+# Build CLI args
 ARGS=()
 [[ -n "${SHORT_NAME}" ]] && ARGS+=("--short-name" "${SHORT_NAME}")
 [[ -n "${TEMPORAL}"   ]] && ARGS+=("--temporal" "${TEMPORAL}")
@@ -36,4 +36,5 @@ fi
 echo "run.sh: launching water-mask export..."
 echo "  OUT: ${USER_OUTPUT_DIR}"
 echo "  POS: 1=${SHORT_NAME:-} 2=${TEMPORAL:-} 3=${BBOX:-} 4=${LIMIT:-} 5=${GRANULE_UR:-} 6=${IDX_WINDOW:-} 7=${S3_URL:-}"
-exec "$PY" "${basedir}/water_mask_to_cog.py" "${ARGS[@]}"
+
+exec $PY "${basedir}/water_mask_to_cog.py" "${ARGS[@]}"
