@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
-# run.sh — DPS positional-only args -> CLI flags
-
+# run.sh — DPS positional-only args -> CLI flags (OPERA water-mask)
 set -euo pipefail
-basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PY='conda run --live-stream -p /opt/conda/envs/subset_watermask_cog python'
 
-# Positional args from DPS (current behavior)
-# 1 SHORT_NAME, 2 TEMPORAL, 3 BBOX, 4 LIMIT, 5 GRANULE_UR, 6 IDX_WINDOW, 7 S3_URL
+# ---- Directories ------------------------------------------------------------
+OUTPUT_DIR="${USER_OUTPUT_DIR:-${PWD}/output}"
+export USER_OUTPUT_DIR="${OUTPUT_DIR}"
+mkdir -p "${OUTPUT_DIR}"
+
+# Helpful debug
+echo "PWD=${PWD}"
+echo "USER_OUTPUT_DIR=${USER_OUTPUT_DIR}"
+
+# ---- Positional args --------------------------------------------------------
 SHORT_NAME="${1:-${SHORT_NAME:-}}"
 TEMPORAL="${2:-${TEMPORAL:-}}"
 BBOX="${3:-${BBOX:-}}"
@@ -15,10 +23,7 @@ GRANULE_UR="${5:-${GRANULE_UR:-}}"
 IDX_WINDOW="${6:-${IDX_WINDOW:-}}"
 S3_URL="${7:-${S3_URL:-}}"
 
-export USER_OUTPUT_DIR="${USER_OUTPUT_DIR:-output}"
-mkdir -p "$USER_OUTPUT_DIR"
-
-# Build CLI args
+# ---- Build CLI args ---------------------------------------------------------
 ARGS=()
 [[ -n "${SHORT_NAME}" ]] && ARGS+=("--short-name" "${SHORT_NAME}")
 [[ -n "${TEMPORAL}"   ]] && ARGS+=("--temporal" "${TEMPORAL}")
@@ -29,14 +34,24 @@ ARGS=()
 [[ -n "${S3_URL}"     ]] && ARGS+=("--s3-url" "${S3_URL}")
 
 # Default short name if missing
-# Default short name if missing
-# Default short name if missing
 if ! printf '%s\0' "${ARGS[@]}" | grep -q -- '--short-name'; then
   ARGS+=("--short-name" "OPERA_L3_DISP-S1_V1")
 fi
+
+# >>> Tell Python where to write outputs (adjust flag name if your script differs)
+ARGS+=("--output-dir" "${USER_OUTPUT_DIR}")
 
 echo "run.sh: launching water-mask export..."
 echo "  OUT: ${USER_OUTPUT_DIR}"
 echo "  POS: 1=${SHORT_NAME:-} 2=${TEMPORAL:-} 3=${BBOX:-} 4=${LIMIT:-} 5=${GRANULE_UR:-} 6=${IDX_WINDOW:-} 7=${S3_URL:-}"
 
-exec $PY "${basedir}/water_mask_to_cog.py" "${ARGS[@]}"
+# ---- Logging for DPS triage -------------------------------------------------
+logfile="${PWD}/opera-watermask.log"
+
+set -x
+${PY} "${basedir}/water_mask_to_cog.py" "${ARGS[@]}" 2>"${logfile}"
+# Post-run: show what landed
+ls -l "${USER_OUTPUT_DIR}" || true
+# Move log into the output bundle on success
+mv "${logfile}" "${USER_OUTPUT_DIR}"
+set +x
