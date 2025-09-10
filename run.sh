@@ -6,7 +6,8 @@ basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PY='conda run --live-stream -p /opt/conda/envs/subset_watermask_cog python'
 
 # ---- Directories ------------------------------------------------------------
-OUTPUT_DIR="${USER_OUTPUT_DIR:-${PWD}/output}"
+# Use relative 'output' folder at the job working dir (what reviewers expect).
+OUTPUT_DIR="${USER_OUTPUT_DIR:-output}"
 export USER_OUTPUT_DIR="${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
@@ -38,7 +39,7 @@ if ! printf '%s\0' "${ARGS[@]}" | grep -q -- '--short-name'; then
   ARGS+=("--short-name" "OPERA_L3_DISP-S1_V1")
 fi
 
-# >>> Tell Python where to write outputs (adjust flag name if your script differs)
+# Tell Python where to write outputs (ensure your script supports --output-dir)
 ARGS+=("--output-dir" "${USER_OUTPUT_DIR}")
 
 echo "run.sh: launching water-mask export..."
@@ -46,12 +47,12 @@ echo "  OUT: ${USER_OUTPUT_DIR}"
 echo "  POS: 1=${SHORT_NAME:-} 2=${TEMPORAL:-} 3=${BBOX:-} 4=${LIMIT:-} 5=${GRANULE_UR:-} 6=${IDX_WINDOW:-} 7=${S3_URL:-}"
 
 # ---- Logging for DPS triage -------------------------------------------------
-logfile="${PWD}/opera-watermask.log"
+logfile="_opera-watermask.log"   # create in PWD, move later
 
 set -x
 ${PY} "${basedir}/water_mask_to_cog.py" "${ARGS[@]}" 2>"${logfile}"
-# Post-run: show what landed
+# Post-run: show what landed and include DPS stdio logs in the product bundle
 ls -l "${USER_OUTPUT_DIR}" || true
-# Move log into the output bundle on success
-mv "${logfile}" "${USER_OUTPUT_DIR}"
+cp -v _stderr.txt _stdout.txt "${USER_OUTPUT_DIR}" || true
+mv -v "${logfile}" "${USER_OUTPUT_DIR}"
 set +x
