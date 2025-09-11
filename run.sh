@@ -30,9 +30,8 @@ ARGS+=("--short-name" "${SHORT_NAME}")
 [[ -n "${IDX_WINDOW}" ]] && ARGS+=("--idx-window" "${IDX_WINDOW}")
 [[ -n "${S3_URL}"     ]] && ARGS+=("--s3-url" "${S3_URL}")
 
-# Exactly like s1-example: pass a relative output dir flag
-# If your script uses --dest or --output instead, change the flag name below.
-ARGS+=("--output-dir" "output")
+
+ARGS+=("--dest" "output")
 
 # ---- Run & capture stderr to triage -----------------------------------------
 logfile="_opera-watermask.log"
