@@ -228,22 +228,45 @@ def pick_granule_url(maap: MAAP, short_name, temporal, bbox, limit, fixed_ur=Non
 
 
 def open_remote_dataset(granule_url: str, aws_creds: dict) -> xr.Dataset:
+    """
+    Open a remote OPERA DISP NetCDF via S3 with lazy loading.
+    Tries multiple xarray engines and applies sensible I/O params.
+    """
     os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
-    s3 = S3FileSystem(key=aws_creds["accessKeyId"],
-                      secret=aws_creds["secretAccessKey"],
-                      token=aws_creds["sessionToken"],
-                      client_kwargs={"region_name": "us-west-2"})
-    _ = s3.info(granule_url)  # sanity: raises if missing
 
-    # Try engines in order
+    s3 = S3FileSystem(
+        key=aws_creds["accessKeyId"],
+        secret=aws_creds["secretAccessKey"],
+        token=aws_creds["sessionToken"],
+        client_kwargs={"region_name": "us-west-2"},
+    )
+
+    # Sanity check (raises if key not found)
+    _ = s3.info(granule_url)
+
+    # Common I/O parameters to avoid unnecessary caching and to respect CF
+    io_params = dict(
+        decode_cf=True,
+        mask_and_scale=True,
+        cache=False,
+    )
+
+    # Try engines in order; return on first success
     for engine in ["h5netcdf", "netcdf4", "scipy"]:
         try:
             fobj = s3.open(granule_url, "rb")
-            ds = xr.open_dataset(fobj, engine=engine, chunks=None)
-            _ = list(ds.sizes.items())[:1]  # touch
+            ds = xr.open_dataset(
+                fobj,
+                engine=engine,
+                chunks="auto",   # lazy, dask-backed reads
+                **io_params,
+            )
+            # Touch metadata to confirm open
+            _ = list(ds.sizes.items())[:1]
             return ds
         except Exception:
             continue
+
     raise RuntimeError(f"Failed to open {granule_url} (tried h5netcdf/netcdf4/scipy)")
 
 
