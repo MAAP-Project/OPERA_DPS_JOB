@@ -36,6 +36,8 @@ def parse_args():
     p.add_argument("--overview-resampling", default="nearest",
                    help="COG overview resampling (nearest for masks)")
     p.add_argument("--out-name", default="water_mask_subset.cog.tif", help="Output filename")
+    p.add_argument("--dest", default=None,
+                   help="Relative output directory (e.g., 'output') — s1-example style.")
     p.add_argument("--idx-window", default=None, help="Index window 'y0:y1,x0:x1'")
     p.add_argument("--s3-url", default=None,
                    help="Direct s3:// path to a .nc granule (bypass CMR search)")
@@ -50,6 +52,8 @@ def parse_args():
         args.granule_ur = args.granule_ur.strip()
     if args.s3_url:
         args.s3_url = args.s3_url.strip()
+    if args.dest:
+        args.dest = args.dest.strip()
 
     return args
 
@@ -300,8 +304,8 @@ def main():
         }
     }))
 
-    # Default relative "output" so local ADE runs don't write to root.
-    out_dir = os.environ.get("USER_OUTPUT_DIR", "output")
+    # s1-style: prefer --dest, then USER_OUTPUT_DIR, then 'output'
+    out_dir = args.dest or os.environ.get("USER_OUTPUT_DIR", "output")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, args.out_name)
 
