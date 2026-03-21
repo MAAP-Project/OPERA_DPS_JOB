@@ -6,7 +6,6 @@ cores_min: 1
 outdir_max: 20 # mebibytes
 code_repository: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
 run_command: /OPERA_DPS_JOB/run.sh
-release_notes: None
 author: OPERA
 contributor: None
 license: https://github.com/MAAP-Project/OPERA_DPS_JOB/blob/ogc/LICENSE
