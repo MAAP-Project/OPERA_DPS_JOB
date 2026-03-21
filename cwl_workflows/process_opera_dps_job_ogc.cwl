@@ -13,25 +13,9 @@ $graph:
       doc: TEMPORAL
       label: TEMPORAL
       type: string
-    BBOX:
-      doc: BBOX
-      label: BBOX
-      type: string
-    LIMIT:
-      doc: LIMIT
-      label: LIMIT
-      type: string
-    GRANULE_UR:
-      doc: GRANULE_UR
-      label: GRANULE_UR
-      type: string
     IDX_WINDOW:
       doc: IDX_WINDOW
       label: IDX_WINDOW
-      type: string
-    S3_URL:
-      doc: S3_URL
-      label: S3_URL
       type: string
   outputs:
     out:
@@ -43,11 +27,7 @@ $graph:
       in:
         SHORT_NAME: SHORT_NAME
         TEMPORAL: TEMPORAL
-        BBOX: BBOX
-        LIMIT: LIMIT
-        GRANULE_UR: GRANULE_UR
         IDX_WINDOW: IDX_WINDOW
-        S3_URL: S3_URL
       out:
       - outputs_result
 - class: CommandLineTool
@@ -58,7 +38,7 @@ $graph:
     NetworkAccess:
       networkAccess: true
     ResourceRequirement:
-      ramMin: 5
+      ramMin: 10
       coresMin: 1
       outdirMax: 20
   baseCommand: /OPERA_DPS_JOB/run.sh
@@ -73,31 +53,11 @@ $graph:
       inputBinding:
         position: 2
         prefix: --TEMPORAL
-    BBOX:
-      type: string
-      inputBinding:
-        position: 3
-        prefix: --BBOX
-    LIMIT:
-      type: string
-      inputBinding:
-        position: 4
-        prefix: --LIMIT
-    GRANULE_UR:
-      type: string
-      inputBinding:
-        position: 5
-        prefix: --GRANULE_UR
     IDX_WINDOW:
       type: string
       inputBinding:
-        position: 6
+        position: 3
         prefix: --IDX_WINDOW
-    S3_URL:
-      type: string
-      inputBinding:
-        position: 7
-        prefix: --S3_URL
   outputs:
     outputs_result:
       outputBinding:
@@ -105,17 +65,17 @@ $graph:
       type: Directory
 s:author:
 - class: s:Person
-  s:name: None
+  s:name: OPERA
 s:contributor:
 - class: s:Person
   s:name: None
 s:citation: null
-s:codeRepository: https://github.com/marjo-luc/OPERA_DPS_JOB.git
-s:commitHash: 7e4565b7f28b53a81128efe547ab4f09256d1a43
-s:dateCreated: 2025-12-15
-s:license: https://github.com/marjo-luc/OPERA_DPS_JOB/blob/feat-v1/LICENSE
+s:codeRepository: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
+s:commitHash: 01ec28c39824269cac0b11eac9c416f46e61b454
+s:dateCreated: 2026-03-21
+s:license: https://github.com/MAAP-Project/OPERA_DPS_JOB/blob/ogc/LICENSE
 s:softwareVersion: 1.0.0
-s:version: 0.1.1
+s:version: ogc
 s:releaseNotes: None
 s:keywords: null
 $namespaces:
