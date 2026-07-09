@@ -68,10 +68,10 @@ s:author:
   s:name: OPERA
 s:contributor:
 - class: s:Person
-  s:name: mlucas
+  s:name: mlucas1
 s:citation: null
 s:codeRepository: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
-s:commitHash: 6534b11ce51edbcbaed8f93e44f8e3ef37b8e8e6
+s:commitHash: 4405d394d19a375c9d2b5dc0211714f2c01f5f1f
 s:dateCreated: 2026-07-09
 s:license: https://github.com/MAAP-Project/OPERA_DPS_JOB/blob/ogc/LICENSE
 s:softwareVersion: 1.0.0
