@@ -71,7 +71,7 @@ s:contributor:
   s:name: mlucas
 s:citation: null
 s:codeRepository: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
-s:commitHash: bd73555cc80d18bba115a0d3a49952f51d87a175
+s:commitHash: 6534b11ce51edbcbaed8f93e44f8e3ef37b8e8e6
 s:dateCreated: 2026-07-09
 s:license: https://github.com/MAAP-Project/OPERA_DPS_JOB/blob/ogc/LICENSE
 s:softwareVersion: 1.0.0
