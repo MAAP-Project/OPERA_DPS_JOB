@@ -2,30 +2,26 @@ on:
   push:
     branches:
       - ogc
-    tags:
-      - '*'
-  workflow_dispatch:
-    inputs:
-      environment:
-        required: true
-        default: 'DIT'
-
 jobs:
   build_app_pack:
-    environment: DIT
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+
     steps:
       - name: Checkout repo content
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Use OGC App Pack Generator Action
-        uses: MAAP-Project/ogc-app-pack-generator@main
+        uses: MAAP-Project/ogc-app-pack-generator@1.0.0
         with:
           # Specify action inputs
           algorithm-configuration-path: algorithm_ogc.yml
           dockerfile-path: Dockerfile
-          deploy-app-pack: false
-          #app-pack-register-endpoint: https://api.uat.maap-project.org/api/ogc/processes
+          deploy-app-pack: true
+          app-pack-register-endpoint: https://api.uat.maap-project.org/api/ogc/processes
         env:
-          # MAAP PGT token is required to deploy the process
-          MAAP_PGT: ${{ secrets.MY_PGT_TOKEN }}
+          # MAAP token is required to deploy the process
+          MAAP_TOKEN: ${{ secrets.MAAP_TOKEN }}
