@@ -71,8 +71,8 @@ s:contributor:
   s:name: None
 s:citation: null
 s:codeRepository: https://github.com/MAAP-Project/OPERA_DPS_JOB.git
-s:commitHash: 8ff65c967a6011804e3879c80f5bbbd7017ed465
-s:dateCreated: 2026-03-21
+s:commitHash: 4c57e282e9d891180c49177810b471281cf47e2e
+s:dateCreated: 2026-07-09
 s:license: https://github.com/MAAP-Project/OPERA_DPS_JOB/blob/ogc/LICENSE
 s:softwareVersion: 1.0.0
 s:version: ogc
